@@ -76,26 +76,14 @@ BAreadwrite <- function(){
 	d1$Concentration <- d1$CountTotal / d1$Volume
 	b1$Density <- b1$CountTotal / b1$SampleArea
 	## Write data
-	write.csv(d1, 'Data/DriftData.csv')
-	write.csv(b1, 'Data/BenthicData.csv')
-	write.csv(gcmrc4$sppl, 'Data/SpeciesList.csv')
+	write.csv(d1, 'Data/DriftData.csv', row.names = FALSE)
+	write.csv(b1, 'Data/BenthicData.csv', row.names = FALSE)
+	write.csv(gcmrc4$sppl, 'Data/SpeciesList.csv', row.names = FALSE)
 
 }
 #BAreadwrite()
 
-## Read in the cleaned up data
-gitdat <- 'https://raw.githubusercontent.com/jmuehlbauer-usgs/BrightAngel/master/Data/'
-w1 <- read.csv(paste0(gitdat, 'WhitingData.csv'))
-wspp1 <- read.csv(paste0(gitdat, 'WhitingSpeciesList.csv'))
-d1 <- read.csv(gitdat, 
-		
-dsamp <- read.csv(paste0(dbdat, 'DriftSample.csv'))
-dspec <- read.csv(paste0(dbdat, 'DriftSpecimen.csv'))
-bsamp <- read.csv(paste0(dbdat, 'tbl_BenthicSample.csv'))
-bspec <- read.csv(paste0(dbdat, 'tbl_BenthicSpecimen.csv'))
-spp1 <- read.csv(paste0(dbdat, 'SpeciesList.csv'))
-
-## Whiting's data (on GitHub)
+## Get data from GitHub
 gitdat <- 'https://raw.githubusercontent.com/jmuehlbauer-usgs/BrightAngel/master/Data/'
 w1 <- read.csv(paste0(gitdat, 'WhitingData.csv'))
 wspp1 <- read.csv(paste0(gitdat, 'WhitingSpeciesList.csv'))
@@ -103,15 +91,14 @@ d1 <- read.csv(paste0(gitdat, 'DriftData.csv'))
 b1 <- read.csv(paste0(gitdat, 'BenthicData.csv'))
 sppl1 <- read.csv(paste0(gitdat, 'SpeciesList.csv'))
 
+
 ##### Clean up data #####
 
 ## Convert dates and times to usable formats
-dsamp1 <- dsamp
-	dsamp1$Date <- as.Date(dsamp$Date, format = '%m/%d/%Y')
-	dsamp1$ProcessDate <- as.Date(dsamp$ProcessDate, format = '%m/%d/%Y')
-bsamp1 <- bsamp
-	bsamp1$Date <- as.Date(bsamp$SampleDate, format = '%m/%d/%Y')
-	bsamp1$ProcessDate <- as.Date(bsamp$DateProcessed, format = '%m/%d/%Y')
+d1$Date <- as.Date(d1$Date, format = '%m/%d/%Y')
+	d1$ProcessDate <- as.Date(d1$ProcessDate, format = '%m/%d/%Y')
+b1$Date <- as.Date(b1$Date, format = '%m/%d/%Y')
+	b1$ProcessDate <- as.Date(b1$ProcessDate, format = '%m/%d/%Y')
 w1$Date <- as.Date(w1$SampleDate, format = '%m/%d/%Y')	
 
 ## Subset GCMRC data to just the samples of interest (Bright Angel in 2016-January 2017)
