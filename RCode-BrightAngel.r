@@ -95,53 +95,11 @@ sppl1 <- read.csv(paste0(gitdat, 'SpeciesList.csv'))
 ##### Clean up data #####
 
 ## Convert dates and times to usable formats
-d1$Date <- as.Date(d1$Date, format = '%m/%d/%Y')
+d1$Date <- as.Date(d1$Date, format = '%Y-%m-%d')
 	d1$ProcessDate <- as.Date(d1$ProcessDate, format = '%m/%d/%Y')
-b1$Date <- as.Date(b1$Date, format = '%m/%d/%Y')
-	b1$ProcessDate <- as.Date(b1$ProcessDate, format = '%m/%d/%Y')
+b1$Date <- as.Date(b1$Date, format = '%Y-%m-%d')
+	b1$ProcessDate <- as.Date(b1$ProcessDate, format = '%Y-%m-%d')
 w1$Date <- as.Date(w1$SampleDate, format = '%m/%d/%Y')	
-
-## Subset GCMRC data to just the samples of interest (Bright Angel in 2016-January 2017)
-dsamp2 <- dsamp1[dsamp1$Reach == 'BrightAngel' & (year(dsamp1$Date) == 2016 | (year(dsamp1$Date) == 2017 & month(dsamp1$Date) == 1)),]
-	dsamp2 <- droplevels(dsamp2)
-bsamp2 <- bsamp1[bsamp1$River == 'Bright Angel' & (year(bsamp1$Date) == 2016 | (year(bsamp1$Date) == 2017 & month(bsamp1$Date) == 1)),]
-	bsamp2 <- droplevels(bsamp2)
-
-## Format benthic sample data to parallel drift, rename or drop columns
-bsamp2$Region <- 'GrandCanyon'
-bsamp2$Reach <- 'BrightAngel'
-bsamp2$SampleNumber <- bsamp2$DatasheetSampleNo
-bsamp2$Depth <- bsamp2$SampleDepth
-bsamp3 <- bsamp2[,c('BarcodeID', 'TripID', 'Region', 'Reach', 'Date', 'SampleNumber', 
-	'RiverMile', 'Depth', 'GearID', 'SampleArea', 'EntererSample', 'Processor', 
-	'ProcessDate', 'ProcessTime', 'EntererSpecimen', 'Notes')]
-	bsamp3$TripID <- ifelse(month(bsamp3$Date) == 6, 'BA20160608',
-		ifelse(month(bsamp3$Date) == 11, 'BA20161108', 
-		ifelse(month(bsamp3$Date) == 1, 'BA20170118', 'BA20160831')))
-	bsamp3$TripID <- as.factor(bsamp3$TripID)
-
-## Format specimen data to include barcodes and total counts, rename or drop columns
-bspec$BarcodeID <- bsamp[match(bspec$SampleID, bsamp$SampleID), 'BarcodeID']
-bspec$CountC <- rowSums(bspec[,6:37], na.rm = TRUE)
-bspec$CountF <- rowSums(bspec[,40:56], na.rm = TRUE)
-bspec$CountTotal <- rowSums(bspec[,c(6:37, 40:56)], na.rm = TRUE)
-colnames(bspec)[which(colnames(bspec)=='Cpt5')] <- 'C0'
-colnames(bspec)[which(colnames(bspec)=='Fpt5')] <- 'F0'
-ccols <- paste0('C', 0:30)
-fcols <- paste0('F', 0:15)
-bspec1 <- bspec[, c('BarcodeID', 'SpeciesID', ccols, 'CExtra', fcols, 'FExtra', 'CountC', 'CountF', 'CountTotal', 'Notes')]
-
-## Convert NA counts to 0s
-bspec1[is.na(bspec1)] <- 0
-	bspec1 <- droplevels(bspec1)
-
-## Merge benthic sample and specimen data together. Same for drift
-d1 <- merge(dsamp2, dspec, by = 'BarcodeID')
-b1 <- merge(bsamp3, bspec1, by = 'BarcodeID')
-
-## Get densities and concentrations
-d1$Concentration <- d1$CountTotal / d1$Volume
-b1$Density <- b1$CountTotal / b1$SampleArea
 
 ## Add functional feeding groups to all datasets
 d1$FFG <- spp1[match(d1$SpeciesID, spp1$SpeciesID), 'FFG']
