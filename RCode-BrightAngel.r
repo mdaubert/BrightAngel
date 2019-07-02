@@ -89,7 +89,7 @@ w1 <- read.csv(paste0(gitdat, 'WhitingData.csv'))
 wspp1 <- read.csv(paste0(gitdat, 'WhitingSpeciesList.csv'))
 d1 <- read.csv(paste0(gitdat, 'DriftData.csv'))
 b1 <- read.csv(paste0(gitdat, 'BenthicData.csv'))
-sppl1 <- read.csv(paste0(gitdat, 'SpeciesList.csv'))
+spp1 <- read.csv(paste0(gitdat, 'SpeciesList.csv'))
 
 
 ##### Clean up data #####
@@ -107,25 +107,23 @@ b1$FFG <- spp1[match(b1$SpeciesID, spp1$SpeciesID), 'FFG']
 w1$FFG <- spp1[match(w1$SpeciesID, spp1$SpeciesID), 'FFG']
 
 
+##### Group specimens by FFG #####
 
+## Combine data by FFG for benthics, drift, and Whiting
 dffg <- tapply(d1$Concentration, d1$FFG, function(x){sum(x, na.rm = TRUE)})
 bffg <- tapply(b1$Density, b1$FFG, function(x){sum(x, na.rm = TRUE)})
 wffg <- tapply(w1$Density, w1$FFG, function(x){sum(x, na.rm = TRUE)})
 
+## Combine all data streams, sort by trophic level
 ffg <- as.data.frame(cbind(dffg, bffg, wffg))
-
-rownames(ffg)[1] <- 'Unknown'
-
-
+	rownames(ffg)[1] <- 'Unknown'
 ffg1 <- ffg[rownames(ffg) %in% c('Shredder', 'CollectorFilterer', 'CollectorGatherer', 'ScraperGrazer', 'Generalist', 'Predator'),]
-
-
 ffg2 <- ffg1[c(6, 1, 2, 5, 3, 4),]
-
-colnames(ffg2) <- c('Drift', 'Benthic', 'Whiting')
-
+	colnames(ffg2) <- c('Drift', 'Benthic', 'Whiting')
 
 
+
+### Stopped here. What follows is unverified and probably needs fixing. Above need to combine life stages for d1, b1, w1.
 
 panel <- function(){}
 par(mfrow = c(2, 1), mar = c(1.5, 5.5, 0.1, 0.1), oma = c(3.2, 0, 0, 0), xpd = FALSE)
