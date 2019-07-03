@@ -6,7 +6,7 @@
 
 ## Load/install requisite packages
 source('https://github.com/jmuehlbauer-usgs/R-packages/blob/master/packload.r?raw=TRUE')
-packload(c('devtools', 'lubridate', 'plots', 'bugR'))
+packload(c('devtools', 'lubridate', 'plots', 'bugR', 'MASS', 'glmmTMB'))
 
 ## Set working directory (depends on whether Jeff or Megan)
 if(Sys.info()[6]=='jmuehlbauer'){
@@ -36,11 +36,11 @@ BAreadwrite <- function(){
 	gcmrc1$bspec$BarcodeID <- gcmrc1$bsamp[match(gcmrc1$bspec$SampleID, gcmrc1$bsamp$SampleID), 'BarcodeID']
 	## Subset to just the samples of interest (Bright Angel in 2016-January 2017)
 	gcmrc2 <- gcmrc1
-		gcmrc2$dsamp <- gcmrc1$dsamp[gcmrc1$dsamp$Reach == 'BrightAngel' & (year(gcmrc1$dsamp$Date) == 2016 | 
-			(year(gcmrc1$dsamp$Date) == 2017 & month(gcmrc1$dsamp$Date) == 1)),]
+		gcmrc2$dsamp <- gcmrc1$dsamp[gcmrc1$dsamp$Reach == 'BrightAngel' & (year(gcmrc1$dsamp$Date) == 
+			2016 | (year(gcmrc1$dsamp$Date) == 2017 & month(gcmrc1$dsamp$Date) == 1)),]
 			gcmrc2$dsamp <- droplevels(gcmrc2$dsamp)
-		gcmrc2$bsamp <- gcmrc1$bsamp[gcmrc1$bsamp$River == 'Bright Angel' & (year(gcmrc1$bsamp$Date) == 2016 | 
-			(year(gcmrc1$bsamp$Date) == 2017 & month(gcmrc1$bsamp$Date) == 1)),]
+		gcmrc2$bsamp <- gcmrc1$bsamp[gcmrc1$bsamp$River == 'Bright Angel' & (year(gcmrc1$bsamp$Date) == 
+			2016 | (year(gcmrc1$bsamp$Date) == 2017 & month(gcmrc1$bsamp$Date) == 1)),]
 			gcmrc2$bsamp <- droplevels(gcmrc2$bsamp)
 	## Format benthic sample data to parallel drift, rename or drop columns
 	gcmrc2$bsamp$Region <- 'GrandCanyon'
@@ -85,27 +85,64 @@ BAreadwrite <- function(){
 
 ## Get data from GitHub
 gitdat <- 'https://raw.githubusercontent.com/jmuehlbauer-usgs/BrightAngel/master/Data/'
-w1 <- read.csv(paste0(gitdat, 'WhitingData.csv'))
-wspp1 <- read.csv(paste0(gitdat, 'WhitingSpeciesList.csv'))
-d1 <- read.csv(paste0(gitdat, 'DriftData.csv'))
-b1 <- read.csv(paste0(gitdat, 'BenthicData.csv'))
-spp1 <- read.csv(paste0(gitdat, 'SpeciesList.csv'))
+gitfiles <- c('DriftData', 'BenthicData', 'WhitingData')
+dat <- lapply(paste0(gitdat, gitfiles, '.csv'), read.csv)
+		names(dat) <- c('Drift', 'Benthic', 'Whiting')
+spp <- read.csv(paste0(gitdat, 'SpeciesList.csv'))
 
 
 ##### Clean up data #####
 
-## Convert dates and times to usable formats
-d1$Date <- as.Date(d1$Date, format = '%Y-%m-%d')
-	d1$ProcessDate <- as.Date(d1$ProcessDate, format = '%m/%d/%Y')
-b1$Date <- as.Date(b1$Date, format = '%Y-%m-%d')
-	b1$ProcessDate <- as.Date(b1$ProcessDate, format = '%Y-%m-%d')
-w1$Date <- as.Date(w1$SampleDate, format = '%m/%d/%Y')	
+## Convert dates usable format
+dat <- lapply(dat, transform, Date = as.Date(Date))
 
-## Add functional feeding groups to all datasets
-d1$FFG <- spp1[match(d1$SpeciesID, spp1$SpeciesID), 'FFG']
-b1$FFG <- spp1[match(b1$SpeciesID, spp1$SpeciesID), 'FFG']
-w1$FFG <- spp1[match(w1$SpeciesID, spp1$SpeciesID), 'FFG']
+## Give Whiting Data a barcode name for consistency
+dat$Whiting$BarcodeID <- paste(dat$Whiting$SampleID, dat$Whiting$Date)
 
+## Sort by SampleID then SpeciesID
+dat <- lapply(dat, function(x) x[order(x[, 'BarcodeID'], x[, 'SpeciesID']),]) 
+
+## Add functional feeding groups
+dat <- lapply(dat, transform, FFG = spp[match(SpeciesID, spp$SpeciesID), 'FFG'])
+
+
+##### Clean up taxa #####
+
+## Get taxa list of present taxa
+taxa <- rbind(spp[spp$SpeciesID %in% dat$Drift$SpeciesID,c('SpeciesID', 'Description')], 
+	spp[spp$SpeciesID %in% dat$Benthic$SpeciesID, c('SpeciesID', 'Description')], 
+	spp[spp$SpeciesID %in% dat$Whiting$SpeciesID,c('SpeciesID', 'Description')])
+	taxa <- taxa[match(unique(taxa$SpeciesID), taxa$SpeciesID),]
+	taxa <- taxa[order(taxa$Description),]
+
+## Convert all taxa in different life stages to same Species ID (e.g., CHIL, CHIP, CHIA all become CHIA)
+dat1 <- lapply(dat, transform, SpeciesID = as.character(SpeciesID))
+origt <- c('MCYA', 'CERA', 'CERP', 'CHIA', 'CHIP', 'WIEA', 'SIMA', 'BASP', 'LEPA', 
+	'CAPA', 'TRIA', 'TRIP', 'HYSP', 'HYDA')
+newt <- c('MCYL', 'CERL', 'CERL', 'CHIL', 'CHIL', 'WIEL', 'SIML', 'BAEL', 'LEPL', 
+	'CAPL', 'TRIL', 'TRIL', 'HYDE', 'HYDL')
+repl1 <- cbind(origt, newt)
+dat1 <- lapply(dat1, transform, SpeciesID = ifelse(SpeciesID %in% origt, 
+	newt[match(SpeciesID, origt)], SpeciesID))
+
+## Combine rows of same taxa from different life stages
+dat2 <- dat1
+for(i in 1:3){
+	t1 <- dat1[[i]]
+	cols <- ifelse(names(dat1)[i] == 'Drift', c(33:74, 76),
+		ifelse(names(dat1)[i] == 'Benthic', c(18:69, 71), 4))
+	BarSpp <- paste(t1$BarcodeID, t1$SpeciesID)
+	t2 <- t1[match(unique(BarSpp), BarSpp),]
+	t2[, cols] <- aggregate(t1[, cols], by = list(t1$SpeciesID, t1$BarcodeID), sum)[, c(-1, -2)]
+	dat2[[i]] <- t2
+}
+
+## Limit to only aquatic taxa
+dat3 <- lapply(dat2, function(x){x[x[, 'SpeciesID'] %in% spp[spp$Habitat == 'Aquatic', 'SpeciesID'],]})
+
+
+
+### Stopped here. What follows is unverified and probably needs fixing. Above need to combine life stages for d1, b1, w1.
 
 ##### Group specimens by FFG #####
 
@@ -121,9 +158,6 @@ ffg1 <- ffg[rownames(ffg) %in% c('Shredder', 'CollectorFilterer', 'CollectorGath
 ffg2 <- ffg1[c(6, 1, 2, 5, 3, 4),]
 	colnames(ffg2) <- c('Drift', 'Benthic', 'Whiting')
 
-
-
-### Stopped here. What follows is unverified and probably needs fixing. Above need to combine life stages for d1, b1, w1.
 
 panel <- function(){}
 par(mfrow = c(2, 1), mar = c(1.5, 5.5, 0.1, 0.1), oma = c(3.2, 0, 0, 0), xpd = FALSE)
